@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ToolScope — SQL vs Pandas vs PySpark Decision Lab</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#111933;
+      --panel-2:#182447;
+      --text:#eef2ff;
+      --muted:#a8b3cf;
+      --sql:#3b82f6;
+      --pandas:#22c55e;
+      --spark:#f59e0b;
+      --accent:#8b5cf6;
+      --border:rgba(255,255,255,.08);
+      --shadow:0 12px 32px rgba(0,0,0,.28);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, rgba(139,92,246,.18), transparent 40%),
+                  radial-gradient(900px 500px at 100% 0%, rgba(59,130,246,.15), transparent 35%),
+                  var(--bg);
+      color:var(--text);
+    }
+    .container{max-width:1280px; margin:0 auto; padding:24px}
+    .nav{
+      position:sticky; top:0; z-index:50;
+      backdrop-filter: blur(10px);
+      background:rgba(11,16,32,.72);
+      border-bottom:1px solid var(--border);
+    }
+    .nav-inner{
+      display:flex; gap:14px; align-items:center; justify-content:space-between;
+      max-width:1280px; margin:0 auto; padding:14px 24px;
+    }
+    .brand{display:flex; align-items:center; gap:12px; font-weight:800; letter-spacing:.2px}
+    .brand .logo{
+      width:40px; height:40px; border-radius:14px;
+      display:grid; place-items:center;
+      background:linear-gradient(135deg, var(--accent), #3b82f6);
+      box-shadow: var(--shadow);
+      font-size:20px;
+    }
+    .nav-links{display:flex; flex-wrap:wrap; gap:10px}
+    .nav-links a{
+      color:var(--muted); text-decoration:none; padding:10px 12px; border-radius:12px;
+      transition:.2s ease;
+    }
+    .nav-links a:hover{background:rgba(255,255,255,.06); color:var(--text)}
+    .hero{
+      display:grid; grid-template-columns: 1.2fr .8fr; gap:24px; align-items:stretch;
+      margin-top:18px;
+    }
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .hero-main{padding:28px}
+    .eyebrow{display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; background:rgba(139,92,246,.12); color:#d9ccff; border:1px solid rgba(139,92,246,.22); font-size:13px}
+    h1{font-size:46px; line-height:1.05; margin:16px 0 12px}
+    .lead{color:var(--muted); font-size:18px; line-height:1.6}
+    .cta-row{display:flex; flex-wrap:wrap; gap:12px; margin-top:20px}
+    .btn{
+      border:1px solid var(--border); color:var(--text); text-decoration:none; font-weight:700;
+      padding:12px 16px; border-radius:14px; display:inline-flex; gap:10px; align-items:center;
+      background:rgba(255,255,255,.04); cursor:pointer;
+    }
+    .btn.primary{background:linear-gradient(135deg, var(--accent), #3b82f6); border:none}
+    .hero-side{padding:22px}
+    .metrics{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+    .metric{padding:18px; border-radius:16px; background:var(--panel); border:1px solid var(--border)}
+    .metric .label{color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.12em}
+    .metric .value{font-size:28px; font-weight:800; margin-top:8px}
+    .workflow{margin-top:18px; display:grid; grid-template-columns:repeat(5,1fr); gap:12px}
+    .wf-step{padding:14px; background:var(--panel); border:1px solid var(--border); border-radius:14px; min-height:92px}
+    .wf-step .n{font-size:12px; color:#d8b4fe; font-weight:800}
+    .section{margin-top:28px}
+    .section h2{font-size:30px; margin:0 0 12px}
+    .section p.sub{color:var(--muted); margin-top:0}
+    .case-grid{
+      display:grid; grid-template-columns:repeat(5,1fr); gap:14px;
+    }
+    .case-card{
+      padding:18px; background:var(--panel); border:1px solid var(--border); border-radius:16px;
+      cursor:pointer; transition:transform .15s ease, border-color .2s ease, background .2s ease;
+    }
+    .case-card:hover{transform:translateY(-2px); border-color:rgba(255,255,255,.16); background:var(--panel-2)}
+    .case-card.active{outline:2px solid rgba(139,92,246,.55); background:var(--panel-2)}
+    .pill{
+      display:inline-flex; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.04em;
+      margin-bottom:10px; border:1px solid transparent;
+    }
+    .sql{background:rgba(59,130,246,.12); color:#bfdbfe; border-color:rgba(59,130,246,.25)}
+    .pandas{background:rgba(34,197,94,.12); color:#bbf7d0; border-color:rgba(34,197,94,.25)}
+    .spark{background:rgba(245,158,11,.12); color:#fde68a; border-color:rgba(245,158,11,.25)}
+    .hybrid{background:rgba(139,92,246,.12); color:#ddd6fe; border-color:rgba(139,92,246,.25)}
+    .case-title{font-weight:800; margin-bottom:8px}
+    .case-meta{color:var(--muted); font-size:14px}
+    .detail{
+      margin-top:16px; padding:22px; display:grid; grid-template-columns:1.25fr .75fr; gap:18px;
+      background:var(--panel); border:1px solid var(--border); border-radius:18px;
+    }
+    .detail h3{margin-top:0; font-size:28px}
+    .detail .muted{color:var(--muted)}
+    .bullets{display:grid; gap:10px; margin-top:14px}
+    .bullets div{padding:12px 14px; background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:14px}
+    .stack{display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 16px}
+    .info-grid{display:grid; gap:12px}
+    .info-box{padding:14px; border-radius:14px; background:rgba(255,255,255,.03); border:1px solid var(--border)}
+    .compare{
+      display:grid; grid-template-columns: 1fr 1fr; gap:18px;
+    }
+    table{
+      width:100%; border-collapse:collapse; overflow:hidden; border-radius:16px; background:var(--panel);
+      border:1px solid var(--border);
+    }
+    th, td{padding:14px 12px; border-bottom:1px solid var(--border); text-align:left}
+    th{font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:#c7d2fe; background:rgba(255,255,255,.03)}
+    tr:last-child td{border-bottom:none}
+    .score{
+      height:16px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; border:1px solid var(--border)
+    }
+    .score > span{display:block; height:100%; border-radius:999px}
+    .code-tabs{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px}
+    .tab-btn{
+      padding:10px 14px; border-radius:12px; border:1px solid var(--border);
+      background:rgba(255,255,255,.04); color:var(--text); cursor:pointer; font-weight:700;
+    }
+    .tab-btn.active{background:linear-gradient(135deg, var(--accent), #3b82f6); border:none}
+    pre{
+      margin:0; padding:18px; overflow:auto; background:#0b1228; border:1px solid var(--border);
+      border-radius:16px; color:#dbeafe; font-size:14px; line-height:1.5;
+    }
+    .demo-controls{display:flex; gap:12px; flex-wrap:wrap; margin:14px 0}
+    select{
+      background:var(--panel); color:var(--text); border:1px solid var(--border);
+      padding:12px 14px; border-radius:12px; min-width:220px;
+    }
+    .table-wrap{overflow:auto; border:1px solid var(--border); border-radius:16px}
+    .decision-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
+    .decision-card{padding:20px; background:var(--panel); border:1px solid var(--border); border-radius:18px}
+    .decision-card h3{margin-top:0}
+    .footer{color:var(--muted); text-align:center; padding:26px 0 34px}
+    @media (max-width:1100px){
+      .hero,.detail,.compare{grid-template-columns:1fr}
+      .case-grid{grid-template-columns:repeat(2,1fr)}
+      .workflow{grid-template-columns:repeat(2,1fr)}
+      .decision-grid{grid-template-columns:1fr}
+    }
+    @media (max-width:720px){
+      h1{font-size:36px}
+      .case-grid{grid-template-columns:1fr}
+      .metrics{grid-template-columns:1fr}
+      .nav-inner{padding:12px 16px}
+      .container{padding:16px}
+    }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <div class="nav-inner">
+      <div class="brand">
+        <div class="logo">📊</div>
+        <div>ToolScope — SQL vs Pandas vs PySpark</div>
+      </div>
+      <div class="nav-links">
+        <a href="#home">Home</a>
+        <a href="#cases">Case Studies</a>
+        <a href="#battle">Tool Battle</a>
+        <a href="#demo">Window Demo</a>
+        <a href="#decision">Decision Framework</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="container" id="home">
+    <section class="hero">
+      <div class="card hero-main">
+        <div class="eyebrow">Interactive Case-Study Website • Analytical Query Processing • Window Functions</div>
+        <h1>ToolScope: SQL vs Pandas vs PySpark Decision Lab</h1>
+        <p class="lead">
+          A presentation-grade interactive website to explain <b>which tool to use, when, and why</b> —
+          using real business case studies, comparative evaluation, and live window-function demos.
+        </p>
+        <div class="cta-row">
+          <a class="btn primary" href="#cases">Explore Case Studies</a>
+          <a class="btn" href="#demo">Open Window Demo</a>
+        </div>
+      </div>
+
+      <div class="card hero-side">
+        <div class="metrics">
+          <div class="metric">
+            <div class="label">SQL</div>
+            <div class="value">Warehouse + BI</div>
+          </div>
+          <div class="metric">
+            <div class="label">Pandas</div>
+            <div class="value">EDA / In-Memory</div>
+          </div>
+          <div class="metric">
+            <div class="label">PySpark</div>
+            <div class="value">Distributed Scale</div>
+          </div>
+        </div>
+
+        <div class="workflow">
+          <div class="wf-step"><div class="n">01</div><b>Data Source</b><br><span class="muted">OLTP / files / events</span></div>
+          <div class="wf-step"><div class="n">02</div><b>Cleaning</b><br><span class="muted">quality + transformation</span></div>
+          <div class="wf-step"><div class="n">03</div><b>Analytical Query</b><br><span class="muted">group, rank, lag, running total</span></div>
+          <div class="wf-step"><div class="n">04</div><b>Visualization</b><br><span class="muted">dashboards & reports</span></div>
+          <div class="wf-step"><div class="n">05</div><b>Decision</b><br><span class="muted">business action</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="cases">
+      <h2>Case Study Explorer</h2>
+      <p class="sub">Click any case to see the business problem, expected analytical goal, best-fit tool, and the reasoning behind the choice.</p>
+
+      <div class="case-grid" id="caseGrid"></div>
+      <div class="detail" id="caseDetail"></div>
+    </section>
+
+    <section class="section" id="battle">
+      <h2>Tool Battle — Comparative Evaluation</h2>
+      <p class="sub">A quick scoring view across common analytics dimensions. Higher score = better fit for that dimension.</p>
+
+      <div class="compare">
+        <div class="card" style="padding:18px">
+          <table id="scoreTable"></table>
+        </div>
+        <div class="card" style="padding:18px">
+          <h3 style="margin-top:0">Interpretation</h3>
+          <div class="bullets">
+            <div><b>Use SQL</b> when data already lives in a relational warehouse and the workload is join-heavy, dashboard/report-oriented, and window-function centric.</div>
+            <div><b>Use Pandas</b> when the dataset fits in memory and you need fast exploratory analysis, cleaning, prototyping, or Python-native manipulation.</div>
+            <div><b>Use PySpark</b> when data is too large for a single machine or you need distributed ETL, large-scale analytics, or event/log processing.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="demo">
+      <h2>Window Function Demo</h2>
+      <p class="sub">Pick an analytical pattern and compare the same logic across SQL, Pandas, and PySpark. The sample output updates live below.</p>
+
+      <div class="card" style="padding:18px">
+        <div class="demo-controls">
+          <select id="operationSelect">
+            <option value="rank">Department Rank</option>
+            <option value="running">Running Total</option>
+            <option value="lag">Lag / Previous Value</option>
+          </select>
+        </div>
+
+        <div class="compare">
+          <div>
+            <h3 style="margin-top:0">Sample Dataset Output</h3>
+            <div class="table-wrap">
+              <table id="demoTable"></table>
+            </div>
+          </div>
+          <div>
+            <div class="code-tabs">
+              <button class="tab-btn active" data-tab="sql">SQL</button>
+              <button class="tab-btn" data-tab="pandas">Pandas</button>
+              <button class="tab-btn" data-tab="spark">PySpark</button>
+            </div>
+            <pre id="codeBlock"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="decision">
+      <h2>Final Decision Framework</h2>
+      
+
+      <div class="decision-grid">
+        <div class="decision-card">
+          <div class="pill pandas">Pandas</div>
+          <h3>Use Pandas when…</h3>
+          <ul>
+            <li>data fits in RAM</li>
+            <li>exploratory analysis / cleaning / prototyping is the priority</li>
+            <li>one analyst or one machine is enough</li>
+            <li>you want tight Python integration for ML or quick analysis</li>
+          </ul>
+        </div>
+        <div class="decision-card">
+          <div class="pill sql">SQL</div>
+          <h3>Use SQL when…</h3>
+          <ul>
+            <li>data is in a relational database / warehouse</li>
+            <li>joins, reporting, BI dashboards, and window functions are core needs</li>
+            <li>business users need stable query-based analytics</li>
+            <li>governed, production-ready reporting is important</li>
+          </ul>
+        </div>
+        <div class="decision-card">
+          <div class="pill spark">PySpark</div>
+          <h3>Use PySpark when…</h3>
+          <ul>
+            <li>data volume is huge (100GB / TB / streaming / distributed)</li>
+            <li>ETL pipelines and large-scale transformations are required</li>
+            <li>single-machine processing becomes too slow or impossible</li>
+            <li>you need cluster execution and scale-out processing</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card" style="padding:22px; margin-top:18px">
+        <h3 style="margin-top:0">One-line conclusion</h3>
+        <p class="lead" style="margin:0">
+          <b>Pandas</b> is best for small-to-medium Python analytics, <b>SQL</b> is best for relational analytical querying and BI,
+          and <b>PySpark</b> is best when scale demands distributed processing.
+        </p>
+      </div>
+    </section>
+
+    <div class="footer">SQL vs Pandas vs PySpark</div>
+  </div>
+
+  <script>
+    const CASES = [
+      {
+        id: "small",
+        title: "Small Business Retail Analytics",
+        bestTool: "Pandas",
+        pill: "pandas",
+        dataSize: "50K – 5L rows",
+        businessProblem: "A local retail chain wants monthly sales analysis, top-selling products, simple customer segmentation, and fast ad-hoc exploration.",
+        sampleGoal: "Find department-wise monthly sales, rank top products, and compute running sales totals.",
+        why: [
+          "Data comfortably fits in memory",
+          "Fast exploratory analysis and cleaning",
+          "Easy charting and quick prototyping in Python"
+        ],
+        whyNot: {
+          SQL: "Useful if data is already in a database, but less flexible for notebook-style ad-hoc analysis.",
+          PySpark: "Overkill for small data; setup complexity is not justified."
+        }
+      },
+      {
+        id: "medium",
+        title: "Medium Company Data Warehouse",
+        bestTool: "SQL",
+        pill: "sql",
+        dataSize: "10L – 5Cr rows",
+        businessProblem: "A mid-size company stores operational data in relational databases and needs BI dashboards with joins, aggregations, ranking, lag/lead, and governed reporting.",
+        sampleGoal: "Rank customers by revenue, compute month-over-month sales change, and identify repeat purchase patterns.",
+        why: [
+          "Data already lives in a relational warehouse",
+          "SQL is ideal for joins, aggregations, ranking, lag/lead",
+          "Easy integration with Power BI and Tableau"
+        ],
+        whyNot: {
+          Pandas: "Can work for extracts, but not ideal as the primary engine for large warehouse analytics.",
+          PySpark: "Useful only if scale grows significantly or data lake/distributed processing is required."
+        }
+      },
+      {
+        id: "large",
+        title: "Large Enterprise / Big Data Platform",
+        bestTool: "PySpark",
+        pill: "spark",
+        dataSize: "100GB – TB/PB scale",
+        businessProblem: "A large enterprise processes clickstream, transactions, and logs at very high scale and needs distributed analytical processing and ETL.",
+        sampleGoal: "Compute customer event funnels, rolling engagement metrics, and large-scale session analytics.",
+        why: [
+          "Distributed computation across a cluster",
+          "Handles very large datasets beyond single-machine memory",
+          "Strong support for ETL + analytical workloads + Spark SQL"
+        ],
+        whyNot: {
+          SQL: "Traditional single-node SQL engines struggle at this scale unless using distributed warehouses.",
+          Pandas: "Memory bottleneck; not suitable for TB-scale processing."
+        }
+      },
+      {
+        id: "banking",
+        title: "Banking Fraud & Risk Analytics",
+        bestTool: "SQL + PySpark",
+        pill: "hybrid",
+        dataSize: "Medium to very large",
+        businessProblem: "A bank needs transaction monitoring, suspicious pattern detection, rolling risk indicators, and periodic regulatory reporting.",
+        sampleGoal: "Find unusual transactions, compare current vs previous transaction amount, and generate rolling risk indicators.",
+        why: [
+          "SQL for structured reporting and regulatory analytics",
+          "PySpark for large transaction streams and historical pattern mining",
+          "Window functions help compare recent vs previous activity"
+        ],
+        whyNot: {
+          Pandas: "Good for sampling and prototyping, but not ideal for enterprise-scale banking analytics."
+        }
+      },
+      {
+        id: "ecom",
+        title: "E-Commerce Recommendation & Customer Analytics",
+        bestTool: "SQL + PySpark + Pandas",
+        pill: "hybrid",
+        dataSize: "Large and growing",
+        businessProblem: "An e-commerce platform wants basket analysis, customer ranking, repeat purchase trends, recommendation signals, and feature engineering for personalization.",
+        sampleGoal: "Top-N products per category, customer lifetime value trend, and next-best recommendation signals.",
+        why: [
+          "SQL for warehouse analytics and dashboard-ready aggregates",
+          "PySpark for event-scale processing and feature engineering",
+          "Pandas for experimentation, validation, and quick EDA"
+        ],
+        whyNot: {}
+      }
+    ];
+
+    const SCORES = [
+      { factor: "Small data analysis", SQL: 6, Pandas: 10, PySpark: 4 },
+      { factor: "Warehouse SQL analytics", SQL: 10, Pandas: 5, PySpark: 7 },
+      { factor: "Big data scalability", SQL: 4, Pandas: 2, PySpark: 10 },
+      { factor: "Ease for ad-hoc analysis", SQL: 6, Pandas: 10, PySpark: 6 },
+      { factor: "Window function maturity", SQL: 10, Pandas: 7, PySpark: 8 },
+      { factor: "Production ETL / distributed processing", SQL: 7, Pandas: 4, PySpark: 10 },
+      { factor: "BI integration", SQL: 10, Pandas: 5, PySpark: 7 }
+    ];
+
+    const DEMO_DATA = [
+      { emp_id: 101, employee: "Asha",   department: "Sales",   month: "Jan", sales: 5000 },
+      { emp_id: 102, employee: "Ravi",   department: "Sales",   month: "Jan", sales: 7000 },
+      { emp_id: 103, employee: "Meena",  department: "Sales",   month: "Feb", sales: 6500 },
+      { emp_id: 104, employee: "Vikram", department: "IT",      month: "Jan", sales: 3000 },
+      { emp_id: 105, employee: "Pooja",  department: "IT",      month: "Feb", sales: 9000 },
+      { emp_id: 106, employee: "Karan",  department: "IT",      month: "Feb", sales: 4000 },
+      { emp_id: 107, employee: "Neha",   department: "HR",      month: "Jan", sales: 3500 },
+      { emp_id: 108, employee: "Amit",   department: "HR",      month: "Feb", sales: 4200 },
+      { emp_id: 109, employee: "Sara",   department: "Finance", month: "Jan", sales: 8000 },
+      { emp_id: 110, employee: "Dev",    department: "Finance", month: "Feb", sales: 7500 }
+    ];
+
+    const CODE = {
+      rank: {
+        sql: `SELECT employee, department, sales,
+       DENSE_RANK() OVER (
+           PARTITION BY department
+           ORDER BY sales DESC
+       ) AS rank_in_dept
+FROM sales_table;`,
+        pandas: `# Pandas
+df["rank_in_dept"] = (
+    df.groupby("department")["sales"]
+      .rank(method="min", ascending=False)
+)`,
+        spark: `# PySpark
+from pyspark.sql.window import Window
+from pyspark.sql.functions import dense_rank, col
+
+w = Window.partitionBy("department").orderBy(col("sales").desc())
+df = df.withColumn("rank_in_dept", dense_rank().over(w))`
+      },
+      running: {
+        sql: `SELECT employee, department, sales,
+       SUM(sales) OVER (
+           PARTITION BY department
+           ORDER BY emp_id
+           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+       ) AS running_total
+FROM sales_table;`,
+        pandas: `# Pandas
+df = df.sort_values(["department","emp_id"])
+df["running_total"] = (
+    df.groupby("department")["sales"].cumsum()
+)`,
+        spark: `# PySpark
+from pyspark.sql.window import Window
+from pyspark.sql.functions import sum as spark_sum
+
+w = Window.partitionBy("department").orderBy("emp_id") \\
+          .rowsBetween(Window.unboundedPreceding, Window.currentRow)
+
+df = df.withColumn("running_total", spark_sum("sales").over(w))`
+      },
+      lag: {
+        sql: `SELECT employee, department, sales,
+       LAG(sales) OVER (
+           PARTITION BY department
+           ORDER BY emp_id
+       ) AS prev_sales
+FROM sales_table;`,
+        pandas: `# Pandas
+df = df.sort_values(["department","emp_id"])
+df["prev_sales"] = (
+    df.groupby("department")["sales"].shift(1)
+)`,
+        spark: `# PySpark
+from pyspark.sql.window import Window
+from pyspark.sql.functions import lag
+
+w = Window.partitionBy("department").orderBy("emp_id")
+df = df.withColumn("prev_sales", lag("sales", 1).over(w))`
+      }
+    };
+
+    let selectedCase = CASES[0];
+    let selectedOperation = "rank";
+    let selectedTab = "sql";
+
+    function renderCases() {
+      const grid = document.getElementById("caseGrid");
+      grid.innerHTML = CASES.map(c => `
+        <div class="case-card ${selectedCase.id === c.id ? "active" : ""}" data-id="${c.id}">
+          <div class="pill ${c.pill}">${c.bestTool}</div>
+          <div class="case-title">${c.title}</div>
+          <div class="case-meta">${c.dataSize}</div>
+        </div>
+      `).join("");
+
+      [...grid.querySelectorAll(".case-card")].forEach(card => {
+        card.addEventListener("click", () => {
+          const id = card.dataset.id;
+          selectedCase = CASES.find(c => c.id === id);
+          renderCases();
+          renderCaseDetail();
+        });
+      });
+    }
+
+    function renderCaseDetail() {
+      const d = document.getElementById("caseDetail");
+      const whyNotHtml = Object.entries(selectedCase.whyNot || {}).map(([tool, reason]) =>
+        `<div class="info-box"><b>${tool}</b><br><span class="muted">${reason}</span></div>`
+      ).join("") || `<div class="info-box"><span class="muted">This scenario is intentionally hybrid — each tool plays a different role in the pipeline.</span></div>`;
+
+      d.innerHTML = `
+        <div>
+          <div class="stack">
+            <div class="pill ${selectedCase.pill}">${selectedCase.bestTool}</div>
+            <div class="pill hybrid">${selectedCase.dataSize}</div>
+          </div>
+          <h3>${selectedCase.title}</h3>
+          <p class="muted">${selectedCase.businessProblem}</p>
+
+          <div class="bullets">
+            <div><b>Analytical goal:</b> ${selectedCase.sampleGoal}</div>
+            ${selectedCase.why.map(x => `<div>✅ ${x}</div>`).join("")}
+          </div>
+        </div>
+
+        <div>
+          <div class="info-grid">
+            <div class="info-box">
+              <b>Best-fit tool / stack</b><br>
+              <span class="muted">${selectedCase.bestTool}</span>
+            </div>
+            <div class="info-box">
+              <b>Why not the others?</b>
+            </div>
+            ${whyNotHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderScoreTable() {
+      const table = document.getElementById("scoreTable");
+      const bar = (v, color) => `
+        <div style="display:grid; grid-template-columns:46px 1fr; gap:10px; align-items:center">
+          <div><b>${v}</b>/10</div>
+          <div class="score"><span style="width:${v*10}%; background:${color}"></span></div>
+        </div>
+      `;
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>Factor</th>
+            <th>SQL</th>
+            <th>Pandas</th>
+            <th>PySpark</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${SCORES.map(r => `
+            <tr>
+              <td>${r.factor}</td>
+              <td>${bar(r.SQL, "linear-gradient(90deg,#3b82f6,#60a5fa)")}</td>
+              <td>${bar(r.Pandas, "linear-gradient(90deg,#22c55e,#4ade80)")}</td>
+              <td>${bar(r.PySpark, "linear-gradient(90deg,#f59e0b,#fbbf24)")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      `;
+    }
+
+    function rankDemo(rows){
+      const grouped = {};
+      rows.forEach(r => {
+        grouped[r.department] = grouped[r.department] || [];
+        grouped[r.department].push({...r});
+      });
+      const out = [];
+      Object.values(grouped).forEach(group => {
+        group.sort((a,b) => b.sales - a.sales || a.emp_id - b.emp_id);
+        let rank = 0, prev = null;
+        group.forEach((r, i) => {
+          if (prev !== r.sales) rank += 1;
+          prev = r.sales;
+          out.push({...r, rank_in_dept: rank});
+        });
+      });
+      return out.sort((a,b) => a.department.localeCompare(b.department) || a.rank_in_dept - b.rank_in_dept || b.sales - a.sales);
+    }
+
+    function runningDemo(rows){
+      const out = rows.map(r => ({...r})).sort((a,b) => a.department.localeCompare(b.department) || a.emp_id - b.emp_id);
+      let currDept = null, run = 0;
+      out.forEach(r => {
+        if (r.department !== currDept){ currDept = r.department; run = 0; }
+        run += r.sales;
+        r.running_total = run;
+      });
+      return out;
+    }
+
+    function lagDemo(rows){
+      const out = rows.map(r => ({...r})).sort((a,b) => a.department.localeCompare(b.department) || a.emp_id - b.emp_id);
+      const last = {};
+      out.forEach(r => {
+        r.prev_sales = last[r.department] ?? null;
+        last[r.department] = r.sales;
+      });
+      return out;
+    }
+
+    function renderDemoTable() {
+      let rows;
+      if (selectedOperation === "rank") rows = rankDemo(DEMO_DATA);
+      else if (selectedOperation === "running") rows = runningDemo(DEMO_DATA);
+      else rows = lagDemo(DEMO_DATA);
+
+      const table = document.getElementById("demoTable");
+      const cols = Object.keys(rows[0] || {});
+      table.innerHTML = `
+        <thead><tr>${cols.map(c => `<th>${c}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>${cols.map(c => `<td>${r[c] ?? ""}</td>`).join("")}</tr>
+          `).join("")}
+        </tbody>
+      `;
+    }
+
+
+    function renderCode() {
+      const block = document.getElementById("codeBlock");
+      block.textContent = CODE[selectedOperation][selectedTab];
+
+    }
+
+    function wireDemo() {
+      const op = document.getElementById("operationSelect");
+      op.addEventListener("change", e => {
+        selectedOperation = e.target.value;
+        renderDemoTable();
+        renderCode();
+      });
+
+      [...document.querySelectorAll(".tab-btn")].forEach(btn => {
+        btn.addEventListener("click", () => {
+          selectedTab = btn.dataset.tab;
+          document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          renderCode();
+        });
+      });
+    }
+
+    renderCases();
+    renderCaseDetail();
+    renderScoreTable();
+    renderDemoTable();
+    renderCode();
+    wireDemo();
+  </script>
+</body>
+</html>
